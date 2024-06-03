@@ -77,8 +77,17 @@ class Individual:
     def update_age(self):
         self.age += 1
 
+        if self.age >= MAX_AGE:
+            self.isAlive = False
+
     def update_state(self):
+        """Update the state of the individual."""
+
         self.update_age()
+
+        # Check if the individual is dead
+        if not self.is_alive():
+            return
 
         self.state_duration -= 1
 
@@ -96,8 +105,13 @@ class Individual:
             self.immunity += immunity_diff
         else:
             # limit the immunity to the maximum immunity
-            max_immunity = self.get_max_immunity(self.age)
+            max_immunity = self.get_max_immunity()
             self.immunity = min(self.immunity + immunity_diff, max_immunity)
+
+        # Check if the individual is dead
+        if self.immunity <= 0:
+            self.isAlive = False
+            return
 
         if self.state_duration == 0:
             if self.state == "Z":
@@ -109,14 +123,16 @@ class Individual:
 
             self.state_duration = STATE_DURATIONS[self.state]
 
-    @staticmethod
-    def get_max_immunity(age):
-        if age < 15 or age > 70:
+    def get_max_immunity(self):
+        if self.age < 15 or self.age > 70:
             return 3
-        elif 40 <= age < 70:
+        elif 40 <= self.age < 70:
             return 6
-        elif 15 <= age < 40:
+        elif 15 <= self.age < 40:
             return 10
+
+    def is_alive(self):
+        return self.isAlive
 
 
 class Simulation:

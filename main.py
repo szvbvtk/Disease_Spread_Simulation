@@ -9,13 +9,14 @@ GRID_HEIGHT = 100
 
 NUM_INDIVIDUALS = 100
 MAX_AGE = 100
-
 SPEED_VALUES = (1, 2, 3)
 # C - ill, Z - infected, ZD - convalescing, ZZ - healthy
 STATE_COLORS = {"C": "red", "Z": "yellow", "ZD": "orange", "ZZ": "green"}
 STATE_VALUES = tuple(STATE_COLORS.keys())
 # In days
 STATE_DURATIONS = {"Z": 2, "C": 7, "ZD": 5}
+# radius in which the infection can spread
+INFECTION_RADIUS = 2
 
 print(STATE_VALUES[-1])
 
@@ -27,6 +28,9 @@ def get_random_direction(current_direction=None):
         directions.remove(current_direction)
 
     return random.choice(directions)
+
+def calculate_distance(x1, y1, x2, y2):
+    return max(x1 - x2, y1 - y2)
 
 
 # CLASSES
@@ -104,21 +108,26 @@ class Individual:
 
             self.state_duration = STATE_DURATIONS[self.state]
 
-    def update_immunity(self):
+    def update_immunity(self, val=None):
         """Update the immunity of the individual."""
 
         # Check if the individual is dead
         if not self.is_alive():
             return
-
-        if self.state == "Z":
-            immunity_diff = -0.1
-        elif self.state == "C":
-            immunity_diff = -0.5
-        elif self.state == "ZD":
-            immunity_diff = 0.1
-        elif self.state == "ZZ":
-            immunity_diff = 0.05
+        
+        # Update the immunity of the individual
+        if val is None:
+            if self.state == "Z":
+                immunity_diff = -0.1
+            elif self.state == "C":
+                immunity_diff = -0.5
+            elif self.state == "ZD":
+                immunity_diff = 0.1
+            elif self.state == "ZZ":
+                immunity_diff = 0.05
+        else:
+            # if the value is provided from the outside (Simulation)
+            immunity_diff = val
 
         if immunity_diff < 0:
             self.immunity += immunity_diff
@@ -145,6 +154,17 @@ class Individual:
             return 6
         elif 15 <= self.age < 40:
             return 10
+        
+    def get_immunity_category(self):
+        if self.immunity <= 3:
+            return "low"
+        elif 3 < self.immunity <= 6:
+            return "medium"
+        elif self.immunity > 6:
+            return "high"
+        
+    def reset_state_duration(self):
+        self.state_duration = STATE_DURATIONS[self.state]
 
     def is_alive(self):
         return self.isAlive
@@ -170,8 +190,55 @@ class Simulation:
                 if individual == other_individual:
                     continue
 
+                distance = calculate_distance(individual.x_pos, individual.y_pos, other_individual.x_pos, other_individual.y_pos)
+                if distance > INFECTION_RADIUS:
+                    continue
+
+                individual_immunity_category = individual.get_immunity_category()
+                other_individual_immunity_category = other_individual.get_immunity_category()
+
+                if individual.state == "ZZ" and other_individual.state == "Z":
+                    if individual_immunity_category == "low":
+                        individual.state = "Z"
+                        individual.reset_state_duration()
+                elif individual.state == "ZZ" and other_individual.state == "C":
+                    if individual_immunity_category in ("low", "medium"):
+                        individual.state = "Z"
+                        individual.reset_state_duration()
+                    elif individual_immunity_category == "high":
+                        individual.update_immunity(-3)
+                elif individual.state == "ZZ" and other_individual.state == "ZD":   
+                    other_individual.update_immunity(1)
+                elif individual.state == "ZZ" and other_individual.state == "ZZ":
+                    immunity = max(individual.immunity, other_individual.immunity)
+                    individual.update_immunity(immunity)
+                    other_individual.update_immunity(immunity)
+                elif individual.state == "C" and other_individual.state == "Z":
+                    if other_individual_immunity_category in ("low", "medium"):
+                        other_individual.state = "C"
+                        other_individual.reset_state_duration()
+                    individual.reset_state_duration()
+                elif individual.state == "C" and other_individual.state == "ZD":
+                    if other_individual_immunity_category in ("low", "medium"):
+                        other_individual.state = "Z"
+                        other_individual.reset_state_duration()
+                elif individual.state == "C" and other_individual.state == "C":
+                    immunity = min(individual.immunity, other_individual.immunity)
+                    individual.update_immunity(immunity)
+                    other_individual.update_immunity(immunity)
+                    individual.reset_state_duration()
+                    other_individual.reset_state_duration()
+                elif individual.state == "Z" and other_individual.state == "ZD":
+                    other_individual.update_immunity(-1)
+                elif individual.state == "ZD" and other_individual.state == "ZD":  
+                    pass             
 
 
 
+
+
+
+# now state_duration stars from number of days and goes down to 0
+# maybe it would be better to start from 0 and go up to the number of days
 if __name__ == "__main__":
     pass

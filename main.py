@@ -52,8 +52,19 @@ class Individual:
         elif 15 <= self.age < 40:
             return random.uniform(6, 10) + MIN_FLOAT
 
+    def update_age(self):
+        self.age += 1
+
+        # Check if the individual is dead
+        if self.age >= MAX_AGE:
+            self.isAlive = False
+
     def update_position(self):
         """Update the position of the individual."""
+
+        # Check if the individual is dead
+        if not self.is_alive():
+            return
 
         # Update the position of the individual
         self.x_pos += self.speed * self.x_direction
@@ -74,44 +85,14 @@ class Individual:
             self.y_pos = GRID_HEIGHT
             self.y_direction = -1
 
-    def update_age(self):
-        self.age += 1
-
-        if self.age >= MAX_AGE:
-            self.isAlive = False
-
     def update_state(self):
         """Update the state of the individual."""
-
-        self.update_age()
 
         # Check if the individual is dead
         if not self.is_alive():
             return
 
         self.state_duration -= 1
-
-        if self.state == "Z":
-            immunity_diff = -0.1
-        elif self.state == "C":
-            immunity_diff = -0.5
-        elif self.state == "ZD":
-            immunity_diff = 0.1
-        elif self.state == "ZZ":
-            immunity_diff = 0.05
-
-        # Update the immunity of the individual
-        if immunity_diff < 0:
-            self.immunity += immunity_diff
-        else:
-            # limit the immunity to the maximum immunity
-            max_immunity = self.get_max_immunity()
-            self.immunity = min(self.immunity + immunity_diff, max_immunity)
-
-        # Check if the individual is dead
-        if self.immunity <= 0:
-            self.isAlive = False
-            return
 
         if self.state_duration == 0:
             if self.state == "Z":
@@ -122,6 +103,40 @@ class Individual:
                 self.state = "ZZ"
 
             self.state_duration = STATE_DURATIONS[self.state]
+
+    def update_immunity(self):
+        """Update the immunity of the individual."""
+
+        # Check if the individual is dead
+        if not self.is_alive():
+            return
+
+        if self.state == "Z":
+            immunity_diff = -0.1
+        elif self.state == "C":
+            immunity_diff = -0.5
+        elif self.state == "ZD":
+            immunity_diff = 0.1
+        elif self.state == "ZZ":
+            immunity_diff = 0.05
+
+        if immunity_diff < 0:
+            self.immunity += immunity_diff
+        else:
+            # limit the immunity to the maximum immunity
+            max_immunity = self.get_max_immunity()
+            self.immunity = min(self.immunity + immunity_diff, max_immunity)
+
+        # Check if the individual is dead
+        if self.immunity <= 0:
+            self.isAlive = False
+
+    def update(self):
+        """Update the individual."""
+        self.update_age()
+        self.update_position()
+        self.update_immunity()
+        self.update_state()
 
     def get_max_immunity(self):
         if self.age < 15 or self.age > 70:
@@ -137,7 +152,25 @@ class Individual:
 
 class Simulation:
     def __init__(self):
-        pass
+        # 1 tick = 1 day
+        self.ticks = 0
+        self.individuals = [Individual() for _ in range(NUM_INDIVIDUALS)]
+
+    def update(self):
+        self.ticks += 1
+
+        # TO DO: Update the simulation
+
+    def remove_dead_individuals(self):
+        self.individuals = [individual for individual in self.individuals if individual.is_alive()]
+
+    def check_interactions(self):
+        for individual in self.individuals:
+            for other_individual in self.individuals:
+                if individual == other_individual:
+                    continue
+
+
 
 
 if __name__ == "__main__":

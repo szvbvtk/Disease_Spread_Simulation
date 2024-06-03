@@ -1,25 +1,28 @@
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.patches as mpatches
 import random
 import sys
-
-MIN_FLOAT = sys.float_info.min
 
 # CONSTANTS
 GRID_WIDTH = 100
 GRID_HEIGHT = 100
-
 NUM_INDIVIDUALS = 100
+NUMBER_OF_TICKS = 10
+SHOW_GRID = True
 MAX_AGE = 100
 SPEED_VALUES = (1, 2, 3)
 # C - ill, Z - infected, ZD - convalescing, ZZ - healthy
 STATE_COLORS = {"C": "red", "Z": "yellow", "ZD": "orange", "ZZ": "green"}
-STATE_VALUES = tuple(STATE_COLORS.keys())
 # In days
 STATE_MAX_DURATIONS = {"Z": 2, "C": 7, "ZD": 5, "ZZ": -1}
 # radius in which the infection can spread
 INFECTION_RADIUS = 2
+# probability of giving birth to one child, rate is halved for second child
 BIRTH_RATE = 0.1
-
+# do not change the following two lines
+STATE_VALUES = tuple(STATE_COLORS.keys())
+MIN_FLOAT = sys.float_info.min
 
 # FUNCTIONS
 def get_random_direction(current_direction=None):
@@ -64,7 +67,7 @@ class Individual:
     def get_initial_immunity(self):
         """Return the initial immunity of the individual based on their age."""
 
-        if self.age < 15 or self.age > 70:
+        if self.age < 15 or self.age >= 70:
             return random.uniform(0, 3) + MIN_FLOAT
         elif 40 <= self.age < 70:
             return random.uniform(3, 6) + MIN_FLOAT
@@ -165,7 +168,7 @@ class Individual:
         self.update_state()
 
     def get_max_immunity(self):
-        if self.age < 15 or self.age > 70:
+        if self.age < 15 or self.age >= 70:
             return 3
         elif 40 <= self.age < 70:
             return 6
@@ -190,18 +193,22 @@ class Individual:
 class Simulation:
     def __init__(self, num_ticks=100):
         # 1 tick = 1 day
-        self.ticks = 0
+        self.current_tick = 0
+        self.num_ticks = num_ticks
         self.individuals = [
             Individual(birth=False, individual_max_age=60)
             for _ in range(NUM_INDIVIDUALS)
         ]
 
-    def start(self):
-        for _ in range(100):
+    def start(self, ax=None):
+        for _ in range(self.num_ticks):
             self.update()
 
+            if ax is not None:
+                self.draw(ax)
+
     def update(self):
-        self.ticks += 1
+        self.current_tick += 1
 
         for individual in self.individuals:
             individual.update()
@@ -285,8 +292,42 @@ class Simulation:
                     if random.random() < BIRTH_RATE / 2:
                         self.individuals.append(Individual(birth=True))
 
+    def draw(self, ax):
+        ax.clear()
+        ax.set_xlim(0, GRID_WIDTH)
+        ax.set_ylim(0, GRID_HEIGHT)
 
-# now state_duration stars from number of days and goes down to 0
-# maybe it would be better to start from 0 and go up to the number of days
+        ax.set_yticks([])
+        ax.set_yticks([])
+
+        if SHOW_GRID:
+            ax.set_xticks(range(0, GRID_WIDTH + 1, 1))
+            ax.set_yticks(range(0, GRID_HEIGHT + 1, 1))
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.grid(True)
+        
+        for individual in self.individuals:
+            ax.add_patch(
+                mpatches.Circle(
+                    (individual.x_pos, individual.y_pos),
+                    1,
+                    color=STATE_COLORS[individual.state],
+                )
+            )
+
+        ax.set_title(f"Day: {self.current_tick}")
+        plt.pause(ANIMATION_PAUSE)
+
+
+ANIMATION_PAUSE = 0.1
+
 if __name__ == "__main__":
-    sim = Simulation(num_ticks=100)
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    sim = Simulation(num_ticks=NUMBER_OF_TICKS)
+    sim.start(ax)
+    plt.show()
+
+
+    # if plot is not shown or animation is lagging, try changing the ANIMATION_PAUSE to higher value

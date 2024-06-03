@@ -17,6 +17,7 @@ STATE_VALUES = tuple(STATE_COLORS.keys())
 STATE_DURATIONS = {"Z": 2, "C": 7, "ZD": 5}
 # radius in which the infection can spread
 INFECTION_RADIUS = 2
+BIRTH_RATE = 0.1
 
 print(STATE_VALUES[-1])
 
@@ -29,22 +30,32 @@ def get_random_direction(current_direction=None):
 
     return random.choice(directions)
 
+
 def calculate_distance(x1, y1, x2, y2):
     return max(x1 - x2, y1 - y2)
 
 
 # CLASSES
 class Individual:
-    def __init__(self, individual_max_age=MAX_AGE):
+    def __init__(self, birth=False, individual_max_age=MAX_AGE):
         self.x_pos = random.randint(0, GRID_WIDTH)
         self.y_pos = random.randint(0, GRID_HEIGHT)
         self.speed = random.choice(SPEED_VALUES)
         self.x_direction, self.y_direction = get_random_direction()
-        self.age = random.randint(0, individual_max_age)
-        self.immunity = self.get_initial_immunity()
-        self.state = random.choice(STATE_VALUES)
+
+        if not birth:
+            self.age = random.randint(0, individual_max_age)
+            self.immunity = self.get_initial_immunity()
+            self.state = random.choice(STATE_VALUES)
+            self.isAlive = True
+        else:
+            # TODO: position of the newborn should be the same one of the parent
+            self.age = 0
+            self.immunity = 10
+            self.state = "ZZ"
+            self.isAlive = True
+
         self.state_duration = STATE_DURATIONS[self.state]
-        self.isAlive = True
 
     def get_initial_immunity(self):
         """Return the initial immunity of the individual based on their age."""
@@ -114,7 +125,7 @@ class Individual:
         # Check if the individual is dead
         if not self.is_alive():
             return
-        
+
         # Update the immunity of the individual
         if val is None:
             if self.state == "Z":
@@ -154,7 +165,7 @@ class Individual:
             return 6
         elif 15 <= self.age < 40:
             return 10
-        
+
     def get_immunity_category(self):
         if self.immunity <= 3:
             return "low"
@@ -162,7 +173,7 @@ class Individual:
             return "medium"
         elif self.immunity > 6:
             return "high"
-        
+
     def reset_state_duration(self):
         self.state_duration = STATE_DURATIONS[self.state]
 
@@ -182,7 +193,9 @@ class Simulation:
         # TO DO: Update the simulation
 
     def remove_dead_individuals(self):
-        self.individuals = [individual for individual in self.individuals if individual.is_alive()]
+        self.individuals = [
+            individual for individual in self.individuals if individual.is_alive()
+        ]
 
     def check_interactions(self):
         for individual in self.individuals:
@@ -190,12 +203,19 @@ class Simulation:
                 if individual == other_individual:
                     continue
 
-                distance = calculate_distance(individual.x_pos, individual.y_pos, other_individual.x_pos, other_individual.y_pos)
+                distance = calculate_distance(
+                    individual.x_pos,
+                    individual.y_pos,
+                    other_individual.x_pos,
+                    other_individual.y_pos,
+                )
                 if distance > INFECTION_RADIUS:
                     continue
 
                 individual_immunity_category = individual.get_immunity_category()
-                other_individual_immunity_category = other_individual.get_immunity_category()
+                other_individual_immunity_category = (
+                    other_individual.get_immunity_category()
+                )
 
                 if individual.state == "ZZ" and other_individual.state == "Z":
                     if individual_immunity_category == "low":
@@ -207,7 +227,7 @@ class Simulation:
                         individual.reset_state_duration()
                     elif individual_immunity_category == "high":
                         individual.update_immunity(-3)
-                elif individual.state == "ZZ" and other_individual.state == "ZD":   
+                elif individual.state == "ZZ" and other_individual.state == "ZD":
                     other_individual.update_immunity(1)
                 elif individual.state == "ZZ" and other_individual.state == "ZZ":
                     immunity = max(individual.immunity, other_individual.immunity)
@@ -230,12 +250,18 @@ class Simulation:
                     other_individual.reset_state_duration()
                 elif individual.state == "Z" and other_individual.state == "ZD":
                     other_individual.update_immunity(-1)
-                elif individual.state == "ZD" and other_individual.state == "ZD":  
-                    pass             
+                elif individual.state == "ZD" and other_individual.state == "ZD":
+                    pass
 
+                if (
+                    20 <= individual.age <= 40
+                    and 20 <= other_individual.age <= 40
+                    and random.random() < BIRTH_RATE
+                ):
+                    self.individuals.append(Individual())
 
-
-
+                    if random.random() < BIRTH_RATE / 2:
+                        self.individuals.append(Individual())
 
 
 # now state_duration stars from number of days and goes down to 0

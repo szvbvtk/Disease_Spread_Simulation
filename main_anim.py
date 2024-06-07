@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.animation import FuncAnimation
 import random
 import sys
 
@@ -11,6 +12,7 @@ NUMBER_OF_TICKS = 10
 SHOW_GRID = True
 ANIMATION_PAUSE = 0.1
 MAX_AGE = 100
+DOT_SIZE = 0.5
 SPEED_VALUES = (1, 2, 3)
 # C - ill, Z - infected, ZD - convalescing, ZZ - healthy
 STATE_COLORS = {"C": "red", "Z": "yellow", "ZD": "orange", "ZZ": "green"}
@@ -41,8 +43,10 @@ def calculate_distance(x1, y1, x2, y2):
 # CLASSES
 class Individual:
     def __init__(self, birth=False, individual_max_age=MAX_AGE):
-        self.x_pos = random.randint(0, GRID_WIDTH)
-        self.y_pos = random.randint(0, GRID_HEIGHT)
+        # self.x_pos = random.randint(0, GRID_WIDTH)
+        # self.y_pos = random.randint(0, GRID_HEIGHT)
+        self.x_pos = random.uniform(DOT_SIZE, GRID_WIDTH - DOT_SIZE)
+        self.y_pos = random.uniform(DOT_SIZE, GRID_HEIGHT - DOT_SIZE)
         self.speed = random.choice(SPEED_VALUES)
         self.x_direction, self.y_direction = get_random_direction()
 
@@ -94,17 +98,17 @@ class Individual:
         self.y_pos += self.speed * self.y_direction
 
         # Check if the individual is out of bounds
-        if self.x_pos < 0:
+        if self.x_pos < DOT_SIZE:
             self.x_pos = 0
             self.x_direction = 1
-        elif self.x_pos > GRID_WIDTH:
+        elif self.x_pos > GRID_WIDTH - DOT_SIZE:
             self.x_pos = GRID_WIDTH
             self.x_direction = -1
 
-        if self.y_pos < 0:
+        if self.y_pos < DOT_SIZE:
             self.y_pos = 0
             self.y_direction = 1
-        elif self.y_pos > GRID_HEIGHT:
+        elif self.y_pos > GRID_HEIGHT - DOT_SIZE:
             self.y_pos = GRID_HEIGHT
             self.y_direction = -1
 
@@ -201,13 +205,6 @@ class Simulation:
             for _ in range(NUM_INDIVIDUALS)
         ]
 
-    def start(self, ax=None):
-        for _ in range(self.num_ticks):
-            self.update()
-
-            if ax is not None:
-                self.draw(ax)
-
     def update(self):
         self.current_tick += 1
 
@@ -223,8 +220,6 @@ class Simulation:
         ]
 
     def check_interactions(self):
-        # for individual in self.individuals:
-        #     for other_individual in self.individuals:
         for i, individual in enumerate(self.individuals):
             # so that we don't check the same pair twice
             for other_individual in self.individuals[i + 1 :]:
@@ -239,6 +234,24 @@ class Simulation:
                 )
                 if distance > INFECTION_RADIUS:
                     continue
+
+                # if distance <= DOT_SIZE:
+                #     individual.x_direction, individual.y_direction = get_random_direction(
+                #         (individual.x_direction, individual.y_direction)
+                #     )
+                #     other_individual.x_direction, other_individual.y_direction = get_random_direction(
+                #         (other_individual.x_direction, other_individual.y_direction)
+                #     )
+
+                if abs(individual.x_pos - other_individual.x_pos) <= 0 and abs(individual.y_pos - other_individual.y_pos) <= 0:
+                    individual.x_direction, individual.y_direction = get_random_direction(
+                        (individual.x_direction, individual.y_direction)
+                    )
+                    other_individual.x_direction, other_individual.y_direction = get_random_direction(
+                        (individual.x_direction, individual.y_direction)
+                    )
+
+                
 
                 # if the individuals are close enough, check if they can infect each other
                 individual_immunity_category = individual.get_immunity_category()
@@ -312,20 +325,58 @@ class Simulation:
             ax.add_patch(
                 mpatches.Circle(
                     (individual.x_pos, individual.y_pos),
-                    0.5,
+                    DOT_SIZE,
                     color=STATE_COLORS[individual.state],
                 )
             )
 
         ax.set_title(f"Day: {self.current_tick}")
-        plt.pause(ANIMATION_PAUSE)
+
+        if self.current_tick == self.num_ticks:
+            ax.text(
+                GRID_WIDTH / 2,
+                GRID_HEIGHT / 2,
+                "Simulation has ended",
+                fontsize=20,
+                ha="center",
+                va="center",
+            )
+            self.current_tick = 0
+
+
+def init():
+    ax.set_xlim(0, GRID_WIDTH)
+    ax.set_ylim(0, GRID_HEIGHT)
+    ax.set_yticks([])
+    ax.set_xticks([])
+    if SHOW_GRID:
+        ax.set_xticks(range(0, GRID_WIDTH + 1, 1))
+        ax.set_yticks(range(0, GRID_HEIGHT + 1, 1))
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.grid(True, alpha=0.5)
+    
+    ax.set_title("Day: 1") 
+    return []
+
+
+def update(frame, sim, ax):
+    sim.update()
+    sim.draw(ax)
 
 
 if __name__ == "__main__":
     fig, ax = plt.subplots(figsize=(10, 10))
 
     sim = Simulation(num_ticks=NUMBER_OF_TICKS)
-    sim.start(ax)
+    ani = FuncAnimation(
+        fig,
+        update,
+        fargs=(sim, ax),
+        frames=NUMBER_OF_TICKS ,
+        init_func=init,
+        repeat=False,
+        # repeat_delay=3000,
+        interval=ANIMATION_PAUSE * 1000,
+    )
     plt.show()
-
-    # if plot is not shown or animation is lagging, try changing the ANIMATION_PAUSE to higher value

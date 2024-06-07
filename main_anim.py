@@ -42,7 +42,13 @@ def calculate_distance(x1, y1, x2, y2):
 
 # CLASSES
 class Individual:
-    def __init__(self, birth=False, individual_max_age=MAX_AGE):
+    def __init__(
+        self,
+        birth=False,
+        individual_max_age=MAX_AGE,
+        parent_x_pos=None,
+        parent_y_pos=None,
+    ):
         # self.x_pos = random.randint(0, GRID_WIDTH)
         # self.y_pos = random.randint(0, GRID_HEIGHT)
         self.x_pos = random.uniform(DOT_SIZE, GRID_WIDTH - DOT_SIZE)
@@ -61,7 +67,8 @@ class Individual:
             else:
                 self.state_duration = random.randint(1, STATE_MAX_DURATIONS[self.state])
         else:
-            # TODO: position of the newborn should be the same one of the parent
+            self.x_pos = parent_x_pos
+            self.y_pos = parent_y_pos
             self.age = 0
             self.immunity = 10
             self.state = "ZZ"
@@ -98,17 +105,17 @@ class Individual:
         self.y_pos += self.speed * self.y_direction
 
         # Check if the individual is out of bounds
-        if self.x_pos < DOT_SIZE:
+        if self.x_pos <= DOT_SIZE:
             self.x_pos = 0
             self.x_direction = 1
-        elif self.x_pos > GRID_WIDTH - DOT_SIZE:
+        elif self.x_pos >= GRID_WIDTH - DOT_SIZE:
             self.x_pos = GRID_WIDTH
             self.x_direction = -1
 
-        if self.y_pos < DOT_SIZE:
+        if self.y_pos < -DOT_SIZE:
             self.y_pos = 0
             self.y_direction = 1
-        elif self.y_pos > GRID_HEIGHT - DOT_SIZE:
+        elif self.y_pos >= GRID_HEIGHT - DOT_SIZE:
             self.y_pos = GRID_HEIGHT
             self.y_direction = -1
 
@@ -243,15 +250,20 @@ class Simulation:
                 #         (other_individual.x_direction, other_individual.y_direction)
                 #     )
 
-                if abs(individual.x_pos - other_individual.x_pos) <= 0 and abs(individual.y_pos - other_individual.y_pos) <= 0:
-                    individual.x_direction, individual.y_direction = get_random_direction(
-                        (individual.x_direction, individual.y_direction)
+                if (
+                    abs(individual.x_pos - other_individual.x_pos) <= 0
+                    and abs(individual.y_pos - other_individual.y_pos) <= 0
+                ):
+                    individual.x_direction, individual.y_direction = (
+                        get_random_direction(
+                            (individual.x_direction, individual.y_direction)
+                        )
                     )
-                    other_individual.x_direction, other_individual.y_direction = get_random_direction(
-                        (individual.x_direction, individual.y_direction)
+                    other_individual.x_direction, other_individual.y_direction = (
+                        get_random_direction(
+                            (individual.x_direction, individual.y_direction)
+                        )
                     )
-
-                
 
                 # if the individuals are close enough, check if they can infect each other
                 individual_immunity_category = individual.get_immunity_category()
@@ -301,10 +313,22 @@ class Simulation:
                     and 20 <= other_individual.age <= 40
                     and random.random() < BIRTH_RATE
                 ):
-                    self.individuals.append(Individual(birth=True))
+                    self.individuals.append(
+                        Individual(
+                            birth=True,
+                            parent_x_pos=individual.x_pos,
+                            parent_y_pos=individual.y_pos,
+                        )
+                    )
 
                     if random.random() < BIRTH_RATE / 2:
-                        self.individuals.append(Individual(birth=True))
+                        self.individuals.append(
+                            Individual(
+                                birth=True,
+                                parent_x_pos=individual.x_pos,
+                                parent_y_pos=individual.y_pos,
+                            )
+                        )
 
     def draw(self, ax):
         ax.clear()
@@ -355,8 +379,8 @@ def init():
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.grid(True, alpha=0.5)
-    
-    ax.set_title("Day: 1") 
+
+    ax.set_title("Day: 1")
     return []
 
 
@@ -366,14 +390,16 @@ def update(frame, sim, ax):
 
 
 if __name__ == "__main__":
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(num='virus spread',figsize=(10, 10))
+    fig.set_tight_layout(True)
+    # fig.suptitle("Simulation of a virus spread")
 
     sim = Simulation(num_ticks=NUMBER_OF_TICKS)
     ani = FuncAnimation(
         fig,
         update,
         fargs=(sim, ax),
-        frames=NUMBER_OF_TICKS ,
+        frames=NUMBER_OF_TICKS,
         init_func=init,
         repeat=False,
         # repeat_delay=3000,

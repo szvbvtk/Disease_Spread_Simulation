@@ -4,6 +4,8 @@ from matplotlib.animation import FuncAnimation
 import random
 import sys
 
+round.seed(212112)
+
 # CONSTANTS
 GRID_WIDTH = 100
 GRID_HEIGHT = 100

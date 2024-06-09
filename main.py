@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.animation import FuncAnimation
 import random
 import sys
 
@@ -11,6 +12,7 @@ NUMBER_OF_TICKS = 10
 SHOW_GRID = True
 ANIMATION_PAUSE = 0.1
 MAX_AGE = 100
+DOT_SIZE = 0.5
 SPEED_VALUES = (1, 2, 3)
 # C - ill, Z - infected, ZD - convalescing, ZZ - healthy
 STATE_COLORS = {"C": "red", "Z": "yellow", "ZD": "orange", "ZZ": "green"}
@@ -40,9 +42,17 @@ def calculate_distance(x1, y1, x2, y2):
 
 # CLASSES
 class Individual:
-    def __init__(self, birth=False, individual_max_age=MAX_AGE):
-        self.x_pos = random.randint(0, GRID_WIDTH)
-        self.y_pos = random.randint(0, GRID_HEIGHT)
+    def __init__(
+        self,
+        birth=False,
+        individual_max_age=MAX_AGE,
+        parent_x_pos=None,
+        parent_y_pos=None,
+    ):
+        # self.x_pos = random.randint(0, GRID_WIDTH)
+        # self.y_pos = random.randint(0, GRID_HEIGHT)
+        self.x_pos = random.uniform(DOT_SIZE, GRID_WIDTH - DOT_SIZE)
+        self.y_pos = random.uniform(DOT_SIZE, GRID_HEIGHT - DOT_SIZE)
         self.speed = random.choice(SPEED_VALUES)
         self.x_direction, self.y_direction = get_random_direction()
 
@@ -57,7 +67,8 @@ class Individual:
             else:
                 self.state_duration = random.randint(1, STATE_MAX_DURATIONS[self.state])
         else:
-            # TODO: position of the newborn should be the same one of the parent
+            self.x_pos = parent_x_pos
+            self.y_pos = parent_y_pos
             self.age = 0
             self.immunity = 10
             self.state = "ZZ"
@@ -94,18 +105,18 @@ class Individual:
         self.y_pos += self.speed * self.y_direction
 
         # Check if the individual is out of bounds
-        if self.x_pos < 0:
-            self.x_pos = 0
+        if self.x_pos <= DOT_SIZE:
+            self.x_pos = DOT_SIZE
             self.x_direction = 1
-        elif self.x_pos > GRID_WIDTH:
-            self.x_pos = GRID_WIDTH
+        elif self.x_pos >= GRID_WIDTH - DOT_SIZE:
+            self.x_pos = GRID_WIDTH - DOT_SIZE
             self.x_direction = -1
 
-        if self.y_pos < 0:
-            self.y_pos = 0
+        if self.y_pos < -DOT_SIZE:
+            self.y_pos = DOT_SIZE
             self.y_direction = 1
-        elif self.y_pos > GRID_HEIGHT:
-            self.y_pos = GRID_HEIGHT
+        elif self.y_pos >= GRID_HEIGHT - DOT_SIZE:
+            self.y_pos = GRID_HEIGHT - DOT_SIZE
             self.y_direction = -1
 
     def update_state(self):
@@ -201,13 +212,6 @@ class Simulation:
             for _ in range(NUM_INDIVIDUALS)
         ]
 
-    def start(self, ax=None):
-        for _ in range(self.num_ticks):
-            self.update()
-
-            if ax is not None:
-                self.draw(ax)
-
     def update(self):
         self.current_tick += 1
 
@@ -217,14 +221,19 @@ class Simulation:
         self.remove_dead_individuals()
         self.check_interactions()
 
+    def start(self, ax=None):
+        for _ in range(self.num_ticks):
+            self.update()
+
+            if ax is not None:
+                self.draw(ax)
+
     def remove_dead_individuals(self):
         self.individuals = [
             individual for individual in self.individuals if individual.is_alive()
         ]
 
     def check_interactions(self):
-        # for individual in self.individuals:
-        #     for other_individual in self.individuals:
         for i, individual in enumerate(self.individuals):
             # so that we don't check the same pair twice
             for other_individual in self.individuals[i + 1 :]:
@@ -239,6 +248,29 @@ class Simulation:
                 )
                 if distance > INFECTION_RADIUS:
                     continue
+
+                # if distance <= DOT_SIZE:
+                #     individual.x_direction, individual.y_direction = get_random_direction(
+                #         (individual.x_direction, individual.y_direction)
+                #     )
+                #     other_individual.x_direction, other_individual.y_direction = get_random_direction(
+                #         (other_individual.x_direction, other_individual.y_direction)
+                #     )
+
+                if (
+                    abs(individual.x_pos - other_individual.x_pos) <= 0
+                    and abs(individual.y_pos - other_individual.y_pos) <= 0
+                ):
+                    individual.x_direction, individual.y_direction = (
+                        get_random_direction(
+                            (individual.x_direction, individual.y_direction)
+                        )
+                    )
+                    other_individual.x_direction, other_individual.y_direction = (
+                        get_random_direction(
+                            (individual.x_direction, individual.y_direction)
+                        )
+                    )
 
                 # if the individuals are close enough, check if they can infect each other
                 individual_immunity_category = individual.get_immunity_category()
@@ -288,10 +320,22 @@ class Simulation:
                     and 20 <= other_individual.age <= 40
                     and random.random() < BIRTH_RATE
                 ):
-                    self.individuals.append(Individual(birth=True))
+                    self.individuals.append(
+                        Individual(
+                            birth=True,
+                            parent_x_pos=individual.x_pos,
+                            parent_y_pos=individual.y_pos,
+                        )
+                    )
 
                     if random.random() < BIRTH_RATE / 2:
-                        self.individuals.append(Individual(birth=True))
+                        self.individuals.append(
+                            Individual(
+                                birth=True,
+                                parent_x_pos=individual.x_pos,
+                                parent_y_pos=individual.y_pos,
+                            )
+                        )
 
     def draw(self, ax):
         ax.clear()
@@ -312,12 +356,24 @@ class Simulation:
             ax.add_patch(
                 mpatches.Circle(
                     (individual.x_pos, individual.y_pos),
-                    0.5,
+                    DOT_SIZE,
                     color=STATE_COLORS[individual.state],
                 )
             )
 
         ax.set_title(f"Day: {self.current_tick}")
+
+        if self.current_tick == self.num_ticks:
+            ax.text(
+                GRID_WIDTH / 2,
+                GRID_HEIGHT / 2,
+                "Simulation has ended",
+                fontsize=20,
+                ha="center",
+                va="center",
+            )
+            self.current_tick = 0
+
         plt.pause(ANIMATION_PAUSE)
 
 

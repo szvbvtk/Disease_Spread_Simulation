@@ -106,17 +106,17 @@ class Individual:
 
         # Check if the individual is out of bounds
         if self.x_pos <= DOT_SIZE:
-            self.x_pos = 0
+            self.x_pos = DOT_SIZE
             self.x_direction = 1
         elif self.x_pos >= GRID_WIDTH - DOT_SIZE:
-            self.x_pos = GRID_WIDTH
+            self.x_pos = GRID_WIDTH - DOT_SIZE
             self.x_direction = -1
 
         if self.y_pos < -DOT_SIZE:
-            self.y_pos = 0
+            self.y_pos = DOT_SIZE
             self.y_direction = 1
         elif self.y_pos >= GRID_HEIGHT - DOT_SIZE:
-            self.y_pos = GRID_HEIGHT
+            self.y_pos = GRID_HEIGHT - DOT_SIZE
             self.y_direction = -1
 
     def update_state(self):
@@ -390,7 +390,7 @@ def update(frame, sim, ax):
 
 
 if __name__ == "__main__":
-    fig, ax = plt.subplots(num='virus spread',figsize=(10, 10))
+    fig, ax = plt.subplots(num="virus spread", figsize=(10, 10))
     fig.set_tight_layout(True)
     # fig.suptitle("Simulation of a virus spread")
 
